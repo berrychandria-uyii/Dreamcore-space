@@ -354,5 +354,121 @@
     go('custom');
   });
 </script>
+<style>
+  /* ===== v2 怪诞拼贴层 ===== */
+  .scene svg.art{ filter:saturate(.85) contrast(1.07); }
+  .halftone{ position:fixed; inset:0; z-index:58; pointer-events:none; opacity:.14; mix-blend-mode:overlay;
+    background-image:radial-gradient(rgba(255,255,255,.85) 1.1px, transparent 1.6px), radial-gradient(rgba(0,0,0,.7) 1.1px, transparent 1.6px);
+    background-size:7px 7px, 11px 11px; background-position:0 0, 3px 5px; }
+  .checker-top,.checker-bottom{ position:fixed; left:0; right:0; height:17px; z-index:57; pointer-events:none; opacity:.8;
+    background:repeating-conic-gradient(#14101f 0% 25%, #f3ead8 0% 50%) 0 0/34px 34px; }
+  .checker-top{ top:0; } .checker-bottom{ bottom:0; }
+  .clutter{ position:absolute; inset:0; z-index:4; pointer-events:none; overflow:hidden; }
+  .clutter .obj{ position:absolute; pointer-events:auto; cursor:pointer; user-select:none; filter:drop-shadow(3px 5px 0 rgba(10,6,24,.35)); animation:bob ease-in-out infinite; }
+  @keyframes bob{ 0%,100%{ transform:translateY(0) rotate(var(--rot,0deg)); } 50%{ transform:translateY(-13px) rotate(calc(var(--rot,0deg) + 4deg)); } }
+  .obj.gear svg,.obj.eye svg,.obj.moon svg{ display:block; width:100%; height:100%; }
+  .obj.word{ font-size:13px; letter-spacing:.34em; writing-mode:vertical-rl; color:#fff8ec; background:rgba(16,10,34,.72); padding:10px 5px; border:1px dashed rgba(255,255,255,.65); }
+  .obj.word.red{ background:#8e1f2f; }
+  .obj.tape{ background:rgba(255,240,190,.88); color:#3a2c14; font-size:12px; letter-spacing:.22em; padding:6px 12px; transform:rotate(var(--rot,-6deg)); box-shadow:2px 3px 0 rgba(10,6,24,.3); }
+  .obj.checker{ background:repeating-conic-gradient(#14101f 0% 25%, #f3ead8 0% 50%); background-size:22px 22px; border:2px solid #14101f; }
+  .obj.thread{ pointer-events:none; }
+  .obj.thread svg{ display:block; width:100%; height:100%; }
+  .ransom span{ display:inline-block; }
+  .ransom span:nth-child(3n){ transform:rotate(-5deg) translateY(2px); background:rgba(20,14,40,.55); padding:0 4px; }
+  .ransom span:nth-child(4n){ transform:rotate(4deg); color:#ffd76e; }
+  .ransom span:nth-child(5n){ transform:rotate(-2deg) translateY(-3px); color:#ff9ecf; }
+  #whisper{ position:fixed; left:50%; bottom:86px; transform:translateX(-50%) rotate(-1.2deg); z-index:90; max-width:min(88vw,520px);
+    background:#fff6da; color:#33241a; padding:12px 20px; font-size:14px; letter-spacing:.14em; line-height:1.9; text-align:center;
+    box-shadow:4px 6px 0 rgba(8,4,20,.45); opacity:0; pointer-events:none; transition:opacity .35s, transform .35s; }
+  #whisper.on{ opacity:1; transform:translateX(-50%) rotate(1deg) scale(1.03); }
+  #chaosBtn{ position:fixed; top:58px; right:18px; z-index:71; font-family:inherit; cursor:pointer; letter-spacing:.26em; font-size:12px;
+    color:#ffe9fb; background:rgba(20,12,44,.55); border:1px solid rgba(255,255,255,.55); border-radius:999px; padding:7px 14px; backdrop-filter:blur(5px); }
+  #chaosBtn:hover{ background:#8e1f2f; }
+  body.chaos .scene.active{ animation:chaoswob 5s ease-in-out infinite; }
+  @keyframes chaoswob{ 0%,100%{ filter:none; } 30%{ filter:hue-rotate(38deg) saturate(1.3); } 60%{ filter:hue-rotate(-30deg) contrast(1.15); } }
+  body.chaos .obj{ animation-duration:1.6s !important; }
+  body.glitching .scene.active{ animation:gl .18s steps(2) 2; }
+  @keyframes gl{ 0%{ transform:translate(0); clip-path:inset(0 0 0 0);} 25%{ transform:translate(-9px,3px); clip-path:inset(12% 0 58% 0);} 50%{ transform:translate(8px,-4px); clip-path:inset(52% 0 8% 0);} 75%{ transform:translate(-5px,1px); clip-path:inset(28% 0 34% 0);} 100%{ transform:translate(0); clip-path:inset(0 0 0 0);} }
+  .portal::before{ content:""; position:absolute; top:26px; left:0; right:0; height:22px; opacity:.65;
+    background:repeating-conic-gradient(#f3ead8 0% 25%, #14101f 0% 50%); background-size:26px 26px; }
+</style>
+<div class="halftone"></div>
+<div class="checker-top"></div>
+<div class="checker-bottom"></div>
+<button id="chaosBtn">再 怪 一 点</button>
+<div id="whisper"></div>
+<script>
+  /* ===== v2: 给每个世界塞满怪东西 ===== */
+  const gearSVG = '<svg viewBox="0 0 100 100"><path fill="#2c2440" d="M50 8 L57 22 A30 30 0 0 1 70 16 L82 26 A30 30 0 0 1 76 39 L92 42 A30 30 0 0 1 92 58 L76 61 A30 30 0 0 1 82 74 L70 84 A30 30 0 0 1 57 78 L50 92 L43 78 A30 30 0 0 1 30 84 L18 74 A30 30 0 0 1 24 61 L8 58 A30 30 0 0 1 8 42 L24 39 A30 30 0 0 1 18 26 L30 16 A30 30 0 0 1 43 22 Z"/><circle cx="50" cy="50" r="13" fill="#f3ead8"/><circle cx="50" cy="50" r="5" fill="#8e1f2f"/></svg>';
+  const eyeSVG = '<svg viewBox="0 0 120 70"><path d="M4 35 Q60 -14 116 35 Q60 84 4 35Z" fill="#fff8ec" stroke="#241a38" stroke-width="4"/><circle cx="60" cy="35" r="17" fill="#43305e"/><circle cx="60" cy="35" r="7" fill="#0d0a18"/><circle cx="66" cy="28" r="4" fill="#fff"/></svg>';
+  const moonSVG = '<svg viewBox="0 0 100 100"><path d="M63 6 A44 44 0 1 0 94 62 A35 35 0 0 1 63 6Z" fill="#ffd76e" stroke="#8a6a1d" stroke-width="3"/></svg>';
+  const threadSVG = '<svg viewBox="0 0 600 200" preserveAspectRatio="none"><path d="M0 30 C 150 160, 320 10, 600 150" stroke="#c22e2e" stroke-width="3" fill="none" stroke-dasharray="8 9"/><circle cx="300" cy="70" r="6" fill="#c22e2e"/></svg>';
+  const words = ['不要回头','门在呼吸','第十三个月','椅子在等你','笑声是借来的','出口在天花板上','请勿喂食影子','今天没有明天','楼梯数到七就停下','月亮是假的'];
+  const whispers = [
+    '它说：你刚才路过的那扇门，数了你的脚步声。',
+    '它说：泡泡不是在天上，是天在泡泡里面。',
+    '它小声说：这座楼一共十三层，地图上只画了十二层。',
+    '它说：如果你听见有人喊你的名字，先数一数在场的人。',
+    '它说：花田里的眼睛闭上了，说明它在看你的背后。',
+    '它说：末班车不载人，载的是没做完的梦。',
+    '它说：剪刀在找一根线，线的另一头系着你。',
+    '它说：水下的铃响了三次，今天的课就永远不上。'
+  ];
+  const whisperBox = document.getElementById('whisper');
+  let whisperTimer = null;
+  function whisper(){
+    whisperBox.textContent = whispers[Math.floor(Math.random()*whispers.length)];
+    whisperBox.classList.add('on');
+    clearTimeout(whisperTimer);
+    whisperTimer = setTimeout(()=> whisperBox.classList.remove('on'), 3400);
+  }
+  function makeObj(kind, x, y, s, rot, text){
+    const d = document.createElement('div');
+    d.className = 'obj ' + kind;
+    d.style.left = x + '%'; d.style.top = y + '%';
+    d.style.setProperty('--rot', rot + 'deg');
+    d.style.animationDuration = (4 + Math.random()*4) + 's';
+    if(kind === 'gear' || kind === 'eye' || kind === 'moon'){ d.style.width = s + 'px'; d.style.height = s + 'px'; d.innerHTML = kind === 'gear' ? gearSVG : kind === 'eye' ? eyeSVG : moonSVG; }
+    if(kind === 'word'){ d.textContent = text; if(Math.random() < .4) d.classList.add('red'); }
+    if(kind === 'tape'){ d.textContent = text; }
+    if(kind === 'checker'){ d.style.width = s + 'px'; d.style.height = (s*.36) + 'px'; d.style.transform = 'rotate(' + rot + 'deg)'; }
+    if(kind === 'thread'){ d.style.width = '70%'; d.style.height = '26%'; d.innerHTML = threadSVG; d.style.animation = 'none'; }
+    if(kind !== 'thread') d.addEventListener('click', whisper);
+    return d;
+  }
+  document.querySelectorAll('.scene').forEach((scene, si)=>{
+    const layer = document.createElement('div');
+    layer.className = 'clutter';
+    const R = (a,b)=> a + Math.random()*(b-a);
+    layer.appendChild(makeObj('gear', R(4,20), R(8,30), R(46,86), R(-30,30)));
+    layer.appendChild(makeObj('gear', R(74,88), R(52,72), R(34,60), R(-30,30)));
+    layer.appendChild(makeObj('eye', R(66,84), R(10,26), R(64,104), R(-12,12)));
+    layer.appendChild(makeObj('eye', R(6,18), R(56,74), R(44,70), R(-12,12)));
+    layer.appendChild(makeObj('moon', R(38,55), R(4,14), R(40,64), 0));
+    layer.appendChild(makeObj('word', R(2,8), R(26,44), 0, 0, words[(si*2) % words.length]));
+    layer.appendChild(makeObj('word', R(90,95), R(30,50), 0, 0, words[(si*2+3) % words.length]));
+    layer.appendChild(makeObj('tape', R(24,44), R(76,86), 0, R(-10,10), words[(si*3+1) % words.length]));
+    layer.appendChild(makeObj('checker', R(56,76), R(80,88), R(90,150), R(-8,8)));
+    layer.appendChild(makeObj('thread', R(8,22), R(16,30), 0, 0));
+    scene.appendChild(layer);
+  });
+  /* 标题剪报字 */
+  document.querySelectorAll('.hint .big, .scene .caption h2').forEach(h=>{
+    const text = h.textContent; h.textContent = ''; h.classList.add('ransom');
+    [...text].forEach(ch=>{ const s = document.createElement('span'); s.textContent = ch; h.appendChild(s); });
+  });
+  /* 再怪一点 */
+  document.getElementById('chaosBtn').addEventListener('click', ()=>{
+    document.body.classList.toggle('chaos');
+    whisper();
+  });
+  /* 随机故障闪烁 */
+  setInterval(()=>{ if(Math.random() < .6){ document.body.classList.add('glitching'); setTimeout(()=> document.body.classList.remove('glitching'), 420); } }, 8000);
+  /* 视差： 怪东西比世界动得快一点 */
+  addEventListener('pointermove', e=>{
+    const dx = (e.clientX / innerWidth - .5), dy = (e.clientY / innerHeight - .5);
+    document.querySelectorAll('.scene.active .clutter').forEach(l=>{ l.style.transform = 'translate(' + (dx*-16) + 'px,' + (dy*-12) + 'px)'; });
+  });
+</script>
 </body>
 </html>
