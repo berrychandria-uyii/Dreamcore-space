@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>梦核空间 · 泡泡万花镜</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root{
+    --ink:#2b2440; --paper:#f6efe3;
+  }
+  html,body{ height:100%; }
+  body{
+    font-family:"Hiragino Mincho ProN","Songti SC","STSong",serif;
+    background:#0d0b1e; color:var(--paper); overflow-x:hidden;
+  }
+  /* ---------- grain + vhs ---------- */
+  .grain{ position:fixed; inset:-50%; width:200%; height:200%; pointer-events:none; z-index:60; opacity:.16;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+    animation:grain 7s steps(8) infinite; }
+  @keyframes grain{ 0%,100%{transform:translate(0,0)} 25%{transform:translate(-2%,1%)} 50%{transform:translate(1%,-2%)} 75%{transform:translate(-1%,2%)} }
+  .vignette{ position:fixed; inset:0; pointer-events:none; z-index:59; background:radial-gradient(ellipse at center, transparent 52%, rgba(5,3,18,.55) 100%); }
+  .stamp{ position:fixed; top:14px; right:18px; z-index:70; font-family:ui-monospace,Menlo,monospace; font-size:12px; letter-spacing:.14em; color:#ffe9fb; text-shadow:0 0 8px rgba(255,120,220,.8); opacity:.9; }
+  .stamp .rec{ color:#ff5d7a; animation:blink 1.6s steps(1) infinite; }
+  @keyframes blink{ 50%{opacity:.15} }
+
+  /* ---------- scenes ---------- */
+  .scene{ position:fixed; inset:0; opacity:0; pointer-events:none; transition:opacity 1.4s ease; overflow:hidden; }
+  .scene.active{ opacity:1; pointer-events:auto; }
+  .scene svg.art{ position:absolute; inset:0; width:100%; height:100%; }
+  .scene .caption{ position:absolute; left:50%; bottom:15vh; transform:translateX(-50%); width:min(680px,86vw); text-align:center; z-index:5; }
+  .scene .caption h2{ font-size:clamp(26px,5.4vw,46px); letter-spacing:.28em; font-weight:600; text-shadow:0 2px 26px rgba(0,0,0,.45); margin-bottom:14px; }
+  .scene .caption p{ font-size:clamp(14px,2.4vw,17px); line-height:2; letter-spacing:.12em; opacity:.92; text-shadow:0 1px 14px rgba(0,0,0,.5); }
+  .world-sky{ background:linear-gradient(180deg,#b8c9ff 0%,#e8c8ef 34%,#fdeedd 62%,#cfe8d8 100%); }
+  .world-mirror{ background:radial-gradient(circle at 50% 42%, #3a1454 0%, #1c0b33 55%, #07040f 100%); }
+  .world-ruin{ background:linear-gradient(180deg,#cfd0cc 0%,#a9aaa4 46%,#6f706c 100%); }
+  .world-water{ background:linear-gradient(180deg,#7fd4c9 0%,#2e8fa3 48%,#0d4457 100%); }
+  .world-station{ background:linear-gradient(180deg,#2e2350 0%,#8a4a72 34%,#e88a5c 62%,#f7c873 100%); }
+  .world-field{ background:linear-gradient(180deg,#ffeef7 0%,#ffd3e8 36%,#b7e3b0 78%,#7cb87e 100%); }
+  .world-custom{ background:linear-gradient(180deg,var(--c1,#b8c9ff),var(--c2,#e8c8ef) 55%,var(--c3,#fdeedd)); transition:background 1s; }
+
+  /* ---------- floating bubbles ---------- */
+  #bubbles{ position:fixed; inset:0; z-index:40; pointer-events:none; }
+  .bubble{ position:absolute; border-radius:50%; pointer-events:auto; cursor:pointer;
+    background:radial-gradient(circle at 32% 30%, rgba(255,255,255,.95), rgba(255,255,255,.18) 42%, rgba(160,200,255,.16) 68%, rgba(255,170,230,.28));
+    box-shadow:inset 0 0 18px rgba(255,255,255,.5), 0 0 22px rgba(190,160,255,.35);
+    border:1px solid rgba(255,255,255,.55);
+    animation:floaty ease-in-out infinite; transition:transform .3s; }
+  .bubble:hover{ transform:scale(1.13); }
+  .bubble::after{ content:""; position:absolute; top:16%; left:20%; width:26%; height:16%; border-radius:50%; background:rgba(255,255,255,.85); transform:rotate(-24deg); filter:blur(1px); }
+  @keyframes floaty{ 0%,100%{ transform:translateY(0) translateX(0);} 50%{ transform:translateY(-26px) translateX(10px);} }
+  .bubble.burst{ animation:burst .5s ease forwards; }
+  @keyframes burst{ to{ transform:scale(2.6); opacity:0; filter:blur(3px);} }
+
+  /* ---------- kaleidoscope overlay ---------- */
+  #kaleido{ position:fixed; inset:0; z-index:80; pointer-events:none; opacity:0; transition:opacity .45s ease; }
+  #kaleido.on{ opacity:1; }
+  #mirrorCanvas{ position:absolute; inset:0; width:100%; height:100%; }
+
+  /* ---------- header / nav ---------- */
+  header{ position:fixed; top:0; left:0; right:0; z-index:65; display:flex; justify-content:space-between; align-items:flex-start; padding:20px 22px; pointer-events:none; }
+  header .logo{ pointer-events:auto; }
+  header .logo h1{ font-size:19px; letter-spacing:.5em; font-weight:600; text-shadow:0 1px 12px rgba(0,0,0,.35); }
+  header .logo span{ display:block; margin-top:6px; font-size:11px; letter-spacing:.34em; opacity:.75; }
+  nav.worlds{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:65; display:flex; gap:8px; flex-wrap:wrap; justify-content:center; width:min(94vw,760px); }
+  nav.worlds button{ pointer-events:auto; font-family:inherit; cursor:pointer; color:var(--paper); background:rgba(20,14,44,.42); border:1px solid rgba(255,255,255,.4); backdrop-filter:blur(6px);
+    padding:8px 14px; border-radius:999px; font-size:13px; letter-spacing:.18em; transition:all .3s; }
+  nav.worlds button:hover{ background:rgba(255,255,255,.28); }
+  nav.worlds button.on{ background:#fff3fb; color:#43305e; border-color:#fff3fb; }
+
+  /* ---------- hero text on first world ---------- */
+  .hint{ position:absolute; top:20vh; left:50%; transform:translateX(-50%); text-align:center; z-index:5; width:min(720px,88vw); }
+  .hint .big{ font-size:clamp(34px,8vw,72px); letter-spacing:.32em; font-weight:600; color:#fffdf6; text-shadow:0 0 34px rgba(255,170,230,.75), 0 2px 18px rgba(90,60,160,.4); }
+  .hint .small{ margin-top:18px; font-size:clamp(13px,2.6vw,16px); letter-spacing:.3em; color:#4c4370; opacity:.85; line-height:2.1; }
+
+  /* ---------- absurd ticker ---------- */
+  .ticker{ position:fixed; top:64px; left:0; right:0; z-index:55; overflow:hidden; white-space:nowrap; pointer-events:none; opacity:.66; }
+  .ticker div{ display:inline-block; padding-left:100%; animation:tick 46s linear infinite; font-size:12px; letter-spacing:.42em; }
+  @keyframes tick{ to{ transform:translateX(-100%);} }
+
+  /* ---------- portal ---------- */
+  .portal{ position:relative; z-index:66; margin-top:100vh; padding:90px 20px 130px; background:linear-gradient(180deg, transparent, rgba(9,6,26,.88) 18%, rgba(9,6,26,.96)); text-align:center; }
+  .portal h3{ font-size:clamp(22px,4.6vw,34px); letter-spacing:.3em; margin-bottom:16px; }
+  .portal p{ letter-spacing:.14em; line-height:2; opacity:.85; font-size:15px; }
+  .portal .row{ margin-top:28px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .portal input{ font-family:inherit; width:min(320px,78vw); padding:13px 18px; border-radius:999px; border:1px solid rgba(255,255,255,.5); background:rgba(255,255,255,.1); color:#fff; font-size:15px; letter-spacing:.1em; text-align:center; outline:none; }
+  .portal input::placeholder{ color:rgba(255,255,255,.55); }
+  .portal button{ font-family:inherit; cursor:pointer; padding:13px 26px; border-radius:999px; border:none; background:linear-gradient(120deg,#ffb7dd,#b7a6ff); color:#3a2358; font-size:15px; letter-spacing:.22em; font-weight:700; transition:transform .25s; }
+  .portal button:hover{ transform:scale(1.06) rotate(-1deg); }
+  #portalResult{ margin:34px auto 0; max-width:620px; padding:26px 28px; border:1px dashed rgba(255,255,255,.45); border-radius:18px; background:rgba(255,255,255,.06); line-height:2.1; letter-spacing:.1em; display:none; }
+  #portalResult b{ font-size:19px; letter-spacing:.26em; }
+  footer{ position:relative; z-index:66; padding:0 20px 90px; text-align:center; font-size:12px; letter-spacing:.3em; opacity:.55; background:rgba(9,6,26,.96); }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="vignette"></div>
+<div class="stamp"><span class="rec">●</span> REC&nbsp; DREAM&nbsp; <span id="clock">00:00:00</span></div>
+<div class="ticker"><div>会走路的椅子 ✂ 旋转的剪刀 ✿ 长眼睛的花 ☁ 没有影子的人 ♪ 听不见的音乐会 ⌂ 通向天花板的楼梯 ✂ 会走路的椅子 ✿ 长眼睛的花 ☁ 没有影子的人 ♪ 听不见的音乐会</div></div>
+
+<header>
+  <div class="logo"><h1>梦核空间</h1><span>DREAMCORE&nbsp;·&nbsp;BUBBLE&nbsp;KALEIDOSCOPE</span></div>
+</header>
+
+<!-- 世界 1 · 云上泡泡原 -->
+<section class="scene world-sky active" data-world="sky">
+  <svg class="art" viewBox="0 0 1440 810" preserveAspectRatio="xMidYMid slice">
+    <ellipse cx="240" cy="640" rx="330" ry="90" fill="#ffffff" opacity=".55"/>
+    <ellipse cx="1180" cy="600" rx="380" ry="110" fill="#ffffff" opacity=".45"/>
+    <ellipse cx="720" cy="700" rx="520" ry="120" fill="#ffffff" opacity=".5"/>
+    <circle cx="1210" cy="150" r="58" fill="#fff7d6" opacity=".9"/>
+    <circle cx="1210" cy="150" r="92" fill="#fff7d6" opacity=".25"/>
+    <rect x="660" y="470" width="10" height="190" fill="#8a7bb8" opacity=".7"/>
+    <rect x="600" y="452" width="130" height="16" rx="8" fill="#8a7bb8" opacity=".7"/>
+    <circle cx="618" cy="438" r="9" fill="#ffd76e"/><circle cx="712" cy="438" r="9" fill="#ffd76e"/>
+  </svg>
+  <div class="hint">
+    <div class="big">梦核空间</div>
+    <div class="small">这里的泡泡不要吹，要碰。<br>碰破一个，就掉进另一个世界。</div>
+  </div>
+  <div class="caption"><h2>云上泡泡原</h2><p>天空是一整块没干的果冻。泡泡在头顶慢慢漂，<br>每一颗里面，都装着一个没讲完的梦。</p></div>
+</section>
+
+<!-- 世界 2 · 万花镜之心 -->
+<section class="scene world-mirror" data-world="mirror">
+  <canvas id="mirrorCanvas"></canvas>
+  <div class="caption"><h2>万花镜之心</h2><p>把眼睛贴上去，世界就碎成对称的花。<br>移动你的手指或鼠标，花会跟着你一起呼吸。</p></div>
+</section>
+
+<!-- 世界 3 · 无人建筑 -->
+<section class="scene world-ruin" data-world="ruin">
+  <svg class="art" viewBox="0 0 1440 810" preserveAspectRatio="xMidYMid slice">
+    <g fill="#5b5c58">
+      <rect x="120" y="180" width="60" height="630"/><rect x="330" y="120" width="60" height="690"/>
+      <rect x="1050" y="120" width="60" height="690"/><rect x="1260" y="180" width="60" height="630"/>
+    </g>
+    <g fill="#4a4b47">
+      <path d="M0 810 L520 470 L520 540 L0 810Z"/>
+      <path d="M1440 810 L920 470 L920 540 L1440 810Z"/>
+      <path d="M520 470 L920 470 L920 540 L520 540Z"/>
+    </g>
+    <g stroke="#43443f" stroke-width="10" fill="none" opacity=".8">
+      <path d="M180 810 L180 640 L420 640 L420 520 L640 520"/>
+      <path d="M1260 810 L1260 640 L1020 640 L1020 520 L800 520"/>
+    </g>
+    <rect x="690" y="250" width="62" height="110" fill="#7d2020"/>
+    <circle cx="742" cy="308" r="4" fill="#e8c87a"/>
+    <rect x="180" y="330" width="46" height="84" fill="#3f4045"/>
+    <path d="M720 360 C 700 480, 760 560, 720 700" stroke="#c22e2e" stroke-width="3" fill="none" stroke-dasharray="7 9"/>
+    <text x="716" y="225" font-size="21" fill="#3d3e3a" text-anchor="middle" letter-spacing="8">出 口 在 天 花 板 上</text>
+  </svg>
+  <div class="caption"><h2>无人建筑</h2><p>楼梯通向天花板，门后还是楼梯。<br>这座建筑没有死人，它只是把所有人都弄丢了。</p></div>
+</section>
+
+<!-- 世界 4 · 水下教室 -->
+<section class="scene world-water" data-world="water">
+  <svg class="art" viewBox="0 0 1440 810" preserveAspectRatio="xMidYMid slice">
+    <g fill="#eafcff" opacity=".14">
+      <path d="M240 0 L360 0 L520 810 L300 810Z"/><path d="M700 0 L800 0 L1010 810 L830 810Z"/><path d="M1080 0 L1160 0 L1300 810 L1180 810Z"/>
+    </g>
+    <g stroke="#dff8ff" stroke-width="5" fill="rgba(10,60,80,.35)">
+      <rect x="180" y="470" width="150" height="14"/><rect x="196" y="484" width="12" height="90"/><rect x="302" y="484" width="12" height="90"/>
+      <rect x="620" y="420" width="150" height="14" transform="rotate(-6 695 427)"/><rect x="640" y="440" width="12" height="90" transform="rotate(-6 646 485)"/><rect x="742" y="428" width="12" height="90" transform="rotate(-6 748 473)"/>
+      <rect x="1020" y="500" width="150" height="14"/><rect x="1036" y="514" width="12" height="90"/><rect x="1142" y="514" width="12" height="90"/>
+    </g>
+    <g fill="#dff8ff" opacity=".5"><circle cx="420" cy="300" r="7"/><circle cx="452" cy="220" r="5"/><circle cx="980" cy="260" r="6"/><circle cx="1010" cy="170" r="4"/><circle cx="700" cy="150" r="5"/></g>
+    <text x="720" y="180" font-size="30" fill="#eafcff" text-anchor="middle" letter-spacing="14" opacity=".85">下 课 铃 已 经 沉 底 了</text>
+  </svg>
+  <div class="caption"><h2>水下教室</h2><p>黑板上写着今天的日期，是很多年以前。<br>椅子们都在轻轻上浮，像一群没交作业的气泡。</p></div>
+</section>
+
+<!-- 世界 5 · 黄昏车站 -->
+<section class="scene world-station" data-world="station">
+  <svg class="art" viewBox="0 0 1440 810" preserveAspectRatio="xMidYMid slice">
+    <circle cx="720" cy="470" r="86" fill="#ffd98a"/><circle cx="720" cy="470" r="150" fill="#ffd98a" opacity=".22"/>
+    <path d="M0 640 L1440 640 L1440 810 L0 810Z" fill="#241a3e"/>
+    <path d="M120 810 L640 640 L700 640 L420 810Z" fill="#3c2c5e"/>
+    <path d="M1320 810 L800 640 L740 640 L1020 810Z" fill="#3c2c5e"/>
+    <g fill="#17102a"><rect x="90" y="420" width="16" height="220"/><rect x="330" y="420" width="16" height="220"/><rect x="1094" y="420" width="16" height="220"/><rect x="1334" y="420" width="16" height="220"/></g>
+    <rect x="60" y="392" width="320" height="30" rx="14" fill="#17102a"/><rect x="1060" y="392" width="320" height="30" rx="14" fill="#17102a"/>
+    <text x="220" y="414" font-size="17" fill="#ffd98a" text-anchor="middle" letter-spacing="4">开往 梦醒站</text>
+    <text x="1220" y="414" font-size="17" fill="#ffd98a" text-anchor="middle" letter-spacing="4">末班车 · 不载人</text>
+  </svg>
+  <div class="caption"><h2>黄昏车站</h2><p>末班车永不进站，所以黄昏永不结束。<br>长椅上坐着你的影子，它比你先到，也比你先走。</p></div>
+</section>
+
+<!-- 世界 6 · 眼睛花田 -->
+<section class="scene world-field" data-world="field">
+  <svg class="art" viewBox="0 0 1440 810" preserveAspectRatio="xMidYMid slice">
+    <path d="M0 560 Q 360 500 720 556 T 1440 540 L1440 810 L0 810Z" fill="#8fce8a"/>
+    <g id="eyeflowers"></g>
+    <ellipse cx="220" cy="150" rx="130" ry="34" fill="#ffffff" opacity=".65"/>
+    <ellipse cx="1180" cy="110" rx="160" ry="40" fill="#ffffff" opacity=".55"/>
+  </svg>
+  <div class="caption"><h2>眼睛花田</h2><p>这里的花不看太阳，只看你。<br>你走过的时候，它们一起眨了一下眼睛。</p></div>
+</section>
+
+<!-- 世界 7 · 你的世界 -->
+<section class="scene world-custom" data-world="custom">
+  <div class="caption"><h2 id="customTitle">你的世界</h2><p id="customText">在下面的门里，写下一个你想成为的地方。</p></div>
+</section>
+
+<div id="bubbles"></div>
+<canvas id="kaleido"></canvas>
+
+<nav class="worlds" id="worldNav">
+  <button data-go="sky" class="on">泡泡原</button>
+  <button data-go="mirror">万花镜</button>
+  <button data-go="ruin">无人建筑</button>
+  <button data-go="water">水下教室</button>
+  <button data-go="station">黄昏车站</button>
+  <button data-go="field">眼睛花田</button>
+</nav>
+
+<div class="portal">
+  <h3>想 象 的 门</h3>
+  <p>写下任何你想成为的地方。<br>一座岛、一间便利店、一颗星星，或者，一个人心里。<br>门会把你转向那里。</p>
+  <div class="row">
+    <input id="placeInput" type="text" placeholder="我想成为 / 我想去……" maxlength="24">
+    <button id="portalBtn">推 开 这 扇 门</button>
+  </div>
+  <div id="portalResult"></div>
+</div>
+<footer>梦核空间 · DREAMCORE SPACE · 泡泡破掉的声音，是另一个世界的门铃</footer>
+
+<script>
+  /* ---------- clock ---------- */
+  const clockEl = document.getElementById('clock');
+  setInterval(()=>{ const d=new Date(); clockEl.textContent=[d.getHours(),d.getMinutes(),d.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':'); }, 500);
+
+  /* ---------- eye flowers ---------- */
+  const ef = document.getElementById('eyeflowers');
+  let flowers='';
+  const spots=[[180,640],[340,690],[520,628],[700,706],[880,646],[1060,700],[1240,640],[430,742],[960,756],[1180,742],[90,716],[1340,712]];
+  spots.forEach(([x,y],i)=>{
+    const s=0.8+((i*37)%50)/60, petal=['#ff9ecf','#c9a6ff','#fff3a6','#ffb38a'][i%4];
+    flowers+='<g transform="translate('+x+','+y+') scale('+s+')">'
+      +'<line x1="0" y1="0" x2="0" y2="46" stroke="#4d8a52" stroke-width="5"/>'
+      +'<g fill="'+petal+'"><ellipse cx="0" cy="-26" rx="10" ry="20"/><ellipse cx="24" cy="-8" rx="20" ry="10"/><ellipse cx="0" cy="12" rx="10" ry="18"/><ellipse cx="-24" cy="-8" rx="20" ry="10"/></g>'
+      +'<circle r="13" fill="#fff"/><circle r="6.5" fill="#43305e"/><circle cx="2" cy="-2" r="2.2" fill="#fff"/></g>';
+  });
+  ef.innerHTML = flowers;
+
+  /* ---------- world switching + kaleidoscope burst ---------- */
+  const scenes = document.querySelectorAll('.scene');
+  const navBtns = document.querySelectorAll('#worldNav button');
+  const kaleido = document.getElementById('kaleido');
+  const kctx = kaleido.getContext('2d');
+  let KW=0, KH=0;
+  function sizeKaleido(){ KW=kaleido.width=innerWidth; KH=kaleido.height=innerHeight; }
+  sizeKaleido(); addEventListener('resize', sizeKaleido);
+
+  let kaleidoUntil = 0, hue = 280;
+  function drawKaleido(){
+    requestAnimationFrame(drawKaleido);
+    const now = performance.now();
+    /* main mirror world canvas */
+    drawMirror(now);
+    if(now > kaleidoUntil){ kaleido.classList.remove('on'); return; }
+    const cx=KW/2, cy=KH/2, seg=10;
+    kctx.clearRect(0,0,KW,KH);
+    for(let i=0;i<seg;i++){
+      kctx.save(); kctx.translate(cx,cy); kctx.rotate((Math.PI*2/seg)*i);
+      if(i%2) kctx.scale(1,-1);
+      for(let j=0;j<5;j++){
+        const r=60+((now/9+j*90)%420), a=now/900+j;
+        const x=Math.cos(a)*r*.55, y=Math.sin(a*1.3)*r*.34;
+        kctx.beginPath(); kctx.arc(x,y,12+10*Math.sin(now/500+j),0,7);
+        kctx.fillStyle='hsla('+((hue+j*36)%360)+',85%,72%,.55)'; kctx.fill();
+      }
+      kctx.restore();
+    }
+  }
+
+  /* mirror world background */
+  const mirror = document.getElementById('mirrorCanvas');
+  const mctx = mirror.getContext('2d');
+  let mx=innerWidth/2, my=innerHeight/2;
+  addEventListener('pointermove', e=>{ mx=e.clientX; my=e.clientY; });
+  function drawMirror(now){
+    if(!document.querySelector('[data-world="mirror"]').classList.contains('active')) return;
+    mirror.width=innerWidth; mirror.height=innerHeight;
+    const seg=12;
+    mctx.clearRect(0,0,mirror.width,mirror.height);
+    for(let i=0;i<seg;i++){
+      mctx.save(); mctx.translate(mirror.width/2, mirror.height/2); mctx.rotate((Math.PI*2/seg)*i);
+      if(i%2) mctx.scale(1,-1);
+      for(let j=0;j<6;j++){
+        const r=40+((now/14+j*80)%460);
+        const x=(mx-mirror.width/2)*.18 + Math.cos(now/1100+j)*r*.6;
+        const y=(my-mirror.height/2)*.18 + Math.sin(now/1300+j*1.7)*r*.38;
+        mctx.beginPath(); mctx.arc(x,y,9+8*Math.sin(now/600+j*2),0,7);
+        mctx.fillStyle='hsla('+((now/40+j*30)%360)+',90%,74%,.6)'; mctx.fill();
+      }
+      mctx.restore();
+    }
+  }
+  drawKaleido();
+
+  function go(world){
+    scenes.forEach(s=>s.classList.toggle('active', s.dataset.world===world));
+    navBtns.forEach(b=>b.classList.toggle('on', b.dataset.go===world));
+    hue = (hue + 70) % 360;
+    kaleidoUntil = performance.now() + 950;
+    kaleido.classList.add('on');
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+  navBtns.forEach(b=> b.addEventListener('click', ()=> go(b.dataset.go)));
+
+  /* ---------- bubbles ---------- */
+  const bubbleBox = document.getElementById('bubbles');
+  const worldOrder = ['mirror','ruin','water','station','field','sky'];
+  function spawnBubble(){
+    const b=document.createElement('div');
+    b.className='bubble';
+    const size=44+Math.random()*90;
+    b.style.width=b.style.height=size+'px';
+    b.style.left=(4+Math.random()*90)+'vw';
+    b.style.top=(10+Math.random()*62)+'vh';
+    b.style.animationDuration=(5+Math.random()*5)+'s';
+    b.title='碰我';
+    b.addEventListener('click', ()=>{
+      b.classList.add('burst');
+      setTimeout(()=>b.remove(), 480);
+      go(worldOrder[Math.floor(Math.random()*worldOrder.length)]);
+      setTimeout(spawnBubble, 900);
+    });
+    bubbleBox.appendChild(b);
+    setTimeout(()=>{ if(b.parentNode && !b.classList.contains('burst')){ b.remove(); spawnBubble(); } }, 14000);
+  }
+  for(let i=0;i<6;i++) setTimeout(spawnBubble, i*700);
+
+  /* ---------- portal : become a place ---------- */
+  const palettes=[['#b8c9ff','#e8c8ef','#fdeedd'],['#ffd3a6','#ff9ecf','#b7a6ff'],['#a6e3d0','#7fb2e5','#3f5f9e'],['#f7c873','#e88a5c','#5b2a63'],['#d9f7c4','#a6e3ff','#7986e8']];
+  const lines=[
+    '空气里漂着没说完的话，落到肩上会变成星星。',
+    '这里的时间是圆的，你走出的每一步都会回到梦里。',
+    '所有的门都为你留着一条缝，缝里透出橘子色的光。',
+    '你不用敲门，泡泡会替你先问一声好。',
+    '地面是软的，像一句被原谅了的话。'
+  ];
+  document.getElementById('portalBtn').addEventListener('click', ()=>{
+    const v=document.getElementById('placeInput').value.trim();
+    const box=document.getElementById('portalResult');
+    if(!v){ box.style.display='block'; box.innerHTML='门说：先告诉它，你想去哪儿。'; return; }
+    let h=0; for(const ch of v) h=(h*31+ch.charCodeAt(0))%997;
+    const p=palettes[h%palettes.length], line=lines[h%lines.length];
+    const custom=document.querySelector('[data-world="custom"]');
+    custom.style.setProperty('--c1',p[0]); custom.style.setProperty('--c2',p[1]); custom.style.setProperty('--c3',p[2]);
+    document.getElementById('customTitle').textContent='「'+v+'」';
+    document.getElementById('customText').innerHTML='你推开门，成为了 '+v+'。<br>'+line;
+    box.style.display='block';
+    box.innerHTML='<b>门开了。</b><br>你成为了「'+v+'」。<br>'+line+'<br><br>往上看，那个世界已经亮起来了。';
+    go('custom');
+  });
+</script>
+</body>
+</html>

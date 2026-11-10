@@ -1,0 +1,17 @@
+# 梦核空间 · Dreamcore Space
+
+Chandria 的个人梦核小网站。
+
+- 碰一碰空中漂浮的泡泡，会裂开万花镜，掉进另一个世界
+- 六个怪诞世界：云上泡泡原、万花镜之心、无人建筑、水下教室、黄昏车站、眼睛花田
+- 页面下方的「想象的门」：写下任何你想成为的地方，世界会转向那里
+
+## 怎么打开
+
+GitHub Pages 地址：https://berrychandria-uyii.github.io/dreamcore-space/
+
+也可以直接用浏览器打开本仓库的 `index.html`。
+
+## 文件
+
+- `index.html` 整个网站都在这一个文件里（样式和互动都在里面），改它就能改网站
